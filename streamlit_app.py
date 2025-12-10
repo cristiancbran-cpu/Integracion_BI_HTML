@@ -3,15 +3,17 @@ import os
 from dotenv import load_dotenv
 
 # Importaciones de LangChain, ahora modulares
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_text_splitters import RecursiveCharacterTextSplitter 
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
-from langchain_community.document_loaders import TextLoader, CSVLoader
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_community.document_loaders import PyPDFLoader
 
-# Corrección en la importación de cadenas
-from langchain.chains import create_stuff_documents_chain, create_retrieval_chain
-from langchain_core.prompts import ChatPromptTemplate
+# Corregido: La función 'create_stuff_documents_chain' DEBE importarse desde su ruta completa.
+# Es la única que suele requerir la ruta larga.
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_history_aware_retriever, create_retrieval_chain
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import HumanMessage, AIMessage
 
 import tempfile
 # ... el resto del código ...
