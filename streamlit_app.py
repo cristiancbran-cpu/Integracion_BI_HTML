@@ -1,21 +1,17 @@
-# streamer_app.py
-
 import streamlit as st
 import os
 from dotenv import load_dotenv
 
-# CORRECCIÓN DE LAS IMPORTACIONES
-# -------------------------------------------------------------
-# Se importan directamente de los paquetes instalados (langchain_community, etc.)
+# Importaciones de LangChain, ahora modulares
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_text_splitters import RecursiveCharacterTextSplitter # CORREGIDO: desde langchain_text_splitters
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_community.document_loaders import TextLoader, CSVLoader # CORREGIDO: desde langchain_community
-from langchain_chroma import Chroma # CORREGIDO: desde langchain_chroma
+from langchain_text_splitters import RecursiveCharacterTextSplitter 
+from langchain_chroma import Chroma
+from langchain_community.document_loaders import TextLoader, CSVLoader
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain.chains import create_retrieval_chain
-# -------------------------------------------------------------
+
+# Corrección en la importación de cadenas
+from langchain.chains import create_stuff_documents_chain, create_retrieval_chain
+from langchain_core.prompts import ChatPromptTemplate
 
 import tempfile
 # ... el resto del código ...
