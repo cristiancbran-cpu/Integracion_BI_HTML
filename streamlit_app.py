@@ -4,11 +4,11 @@ import streamlit as st
 st.set_page_config(page_title="Guía: HTML Content en Power BI", layout="wide")
 
 st.title("💡 Visualizador HTML Content en Power BI")
-st.header("Convierte Medidas DAX en Visualizaciones Dinámicas (HTML/SVG)")
+st.header("Guía Completa para KPI/OKR y Visualizaciones Dinámicas")
 
 st.markdown(
     """
-    El visualizador **HTML Content** (generalmente un visualizador personalizado) permite inyectar código HTML, CSS y SVG directamente en un informe de Power BI para crear visualizaciones personalizadas.
+    El visualizador **HTML Content** permite inyectar código HTML/SVG directamente en un informe de Power BI, lo cual es esencial para crear KPI visuales personalizados que superan las limitaciones de formato estándar.
     """
 )
 
@@ -16,10 +16,10 @@ st.markdown("---")
 
 # --- Definición de Pestañas ---
 
-tab1, tab2, tab3 = st.tabs(["1. ¿Qué es y Cómo Funciona?", "2. Aplicación y Código DAX", "3. Ejemplos Prácticos (SVG/HTML)"])
+tab1, tab2, tab3 = st.tabs(["1. Conceptos y Requisitos", "2. Implementación Paso a Paso en Power BI", "3. Ejemplos Avanzados (KPI, OKR y Código)"])
 
 # ----------------------------------------------------------------------
-# PESTAÑA 1: Conceptos (Sin cambios significativos)
+# PESTAÑA 1: Conceptos (Sin cambios)
 # ----------------------------------------------------------------------
 with tab1:
     st.subheader("¿Qué es el Visualizador HTML Content?")
@@ -28,231 +28,203 @@ with tab1:
         Es un visualizador personalizado (no nativo de Microsoft) que interpreta código HTML que se le pasa como una cadena de texto.
         
         * **Propósito:** Superar las limitaciones de formato y visualización de las tarjetas o tablas estándar de Power BI.
-        * **Contenido Aceptado:** HTML, CSS y, fundamentalmente, código **SVG (Scalable Vector Graphics)** para dibujar gráficos dinámicos.
+        * **Mecanismo:** El resultado de la medida DAX debe ser una cadena de texto que contiene código **HTML, CSS o SVG**.
         """
     )
 
     st.subheader("Mecanismo Clave: DAX como Generador de Código")
     st.markdown(
         """
-        El funcionamiento se basa en generar una *única medida DAX* cuyo resultado es una **cadena de código HTML o SVG completa**.
+        La clave es usar DAX para calcular valores y luego concatenarlos con etiquetas de código.
         
-        1.  **Cálculo DAX:** Se utiliza DAX para calcular valores, realizar comparaciones.
-        2.  **Concatenación:** El resultado del cálculo se concatena con etiquetas HTML/SVG.
-        3.  **Visualización:** El visualizador HTML Content toma esa cadena de código DAX y la renderiza.
+        * **DAX:** Calcula valores, compara (`IF`, `SWITCH`) y define colores o tamaños.
+        * **Concatenación:** Usa el operador `&` o la función `CONCATENATEX` para unir el valor DAX con el código SVG/HTML.
         """
     )
     
     st.markdown("---")
     st.subheader("Requisitos Previos")
-    st.warning("Necesitas descargar e importar un visualizador personalizado de HTML Content desde AppSource de Microsoft.")
+    st.warning("Necesitas descargar e importar un visualizador personalizado de HTML Content (ej. 'HTML Viewer' o 'Text Filter') desde AppSource de Microsoft.")
 
 
 # ----------------------------------------------------------------------
-# PESTAÑA 2: Aplicación y Código DAX (Añadido Visual Conceptual)
+# PESTAÑA 2: Implementación Paso a Paso en Power BI (NUEVA)
 # ----------------------------------------------------------------------
 with tab2:
-    st.subheader("Pasos para la Aplicación en Power BI")
-    # ... (Pasos de aplicación sin cambios) ...
+    st.subheader("Guía Paso a Paso para Aplicar HTML Content")
+    
     st.markdown(
         """
-        1.  **Importar Visualizador:** Importa el visualizador **HTML Content** (o similar) desde el mercado de AppSource.
-        2.  **Crear Medida DAX:** Escribe una medida DAX que incluya el código HTML/SVG necesario.
-        3.  **Colocar la Medida:** Arrastra esa medida DAX al campo principal del visualizador HTML Content.
-        4.  **Configuración:** Asegúrate de que la configuración del visualizador esté activa para interpretar el HTML.
+        Sigue estos pasos para importar el visualizador y preparar tu medida DAX para la visualización dinámica.
         """
     )
     
-    st.subheader("Ejemplo Base de Medida DAX (Semáforo Condicional)")
-    st.markdown("El código DAX decide el color y el valor a mostrar.")
+    st.markdown("### 1. Importar el Visualizador")
+    st.markdown(
+        """
+        1.  Abre **Power BI Desktop**.
+        2.  En la pestaña **Inicio** o **Insertar**, haz clic en el icono **Obtener más objetos visuales** (tres puntos "..." o el icono de AppSource).
+        3.  Busca y selecciona un visualizador que soporte HTML, como **"HTML Content"** o **"HTML Viewer"**.
+        4.  Haz clic en **Agregar** para importar el visualizador a tu informe.
+        """
+    )
     
-    col_code, col_visual = st.columns(2)
+    st.markdown("### 2. Crear la Medida DAX (Generadora de Código)")
+    st.markdown(
+        """
+        1.  Ve a la vista **Datos** o **Modelo** y selecciona la tabla donde quieres guardar la medida.
+        2.  Haz clic en **Nueva medida**.
+        3.  Escribe el código DAX que genera la cadena HTML/SVG.
+        """
+    )
+    
+    st.code(
+        """
+        // Ejemplo de Medida que genera un Semáforo condicional
+        Medida Semáforo = 
+        VAR Valor = [Ventas Netas] // Asume que tienes una medida base de ventas
+        VAR Color = SWITCH(TRUE(), 
+                        Valor >= 50000, "green", 
+                        Valor >= 20000, "orange", 
+                        "red")
+        
+        // El resultado es una cadena de texto que HTML Content interpreta.
+        RETURN 
+            "<span style='font-size: 20px; color: " & Color & ";'>&#9679;</span>" & 
+            " " & FORMAT(Valor, "$#,0")
+        """,
+        language='dax'
+    )
 
-    with col_code:
-        st.code(
-            """
-            // Medida que genera el círculo de color y el valor
-            VAR VentasActuales = [Total Ventas] 
-            VAR ColorSemaforo = 
-                SWITCH(
-                    TRUE(),
-                    VentasActuales >= 100000, "green",
-                    VentasActuales >= 50000, "orange",
-                    "red"
-                )
-            VAR IconoHTML = 
-                "<span style='font-size: 20px; color: " & ColorSemaforo & ";'>&#9679;</span>"
-            
-            RETURN
-                IconoHTML & " " & FORMAT(VentasActuales, "$#,0")
-            """,
-            language='dax'
-        )
-    
-    with col_visual:
-        st.markdown("#### ✨ Visual en Power BI (Conceptual)")
-        st.markdown("Si [Total Ventas] fuera **$120,000**:")
-        st.markdown(
-            """
-            <div style='border: 1px solid #ccc; padding: 10px; border-radius: 5px; background-color: #f9f9f9;'>
-                <span style='font-size: 20px; color: green;'>&#9679;</span> 
-                <span style='font-size: 16px; font-weight: bold;'>$120,000</span>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-        st.markdown("Si [Total Ventas] fuera **$30,000**:")
-        st.markdown(
-            """
-            <div style='border: 1px solid #ccc; padding: 10px; border-radius: 5px; background-color: #f9f9f9;'>
-                <span style='font-size: 20px; color: red;'>&#9679;</span> 
-                <span style='font-size: 16px; font-weight: bold;'>$30,000</span>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+    st.markdown("### 3. Configurar la Visualización")
+    st.markdown(
+        """
+        1.  Arrastra el visualizador **HTML Content** al lienzo de tu informe.
+        2.  Arrastra la medida que acabas de crear (**Medida Semáforo**) al campo principal del visualizador (a menudo llamado **Value** o **Data**).
+        3.  El visualizador ahora mostrará un círculo de color (semáforo) junto al valor, según las reglas que definiste en DAX.
+        """
+    )
 
 
 # ----------------------------------------------------------------------
-# PESTAÑA 3: Ejemplos Prácticos (Añadido Visual Conceptual)
+# PESTAÑA 3: Ejemplos Avanzados (KPI, OKR y Código) (MODIFICADA)
 # ----------------------------------------------------------------------
 with tab3:
-    st.header("Ejemplos Avanzados de Código para Power BI")
-
-    # --- 1. Barra de Progreso ---
-    st.subheader("1. Barra de Progreso Dinámica (SVG)")
-    st.markdown("Útil para mostrar el progreso de una métrica hacia un objetivo dentro de una tabla.")
+    st.header("3. Ejemplos Avanzados: KPI, OKR y Código SVG")
     
-    col_code_1, col_visual_1 = st.columns(2)
+    st.markdown(
+        """
+        Estos ejemplos muestran cómo usar la capacidad de HTML Content para la monitorización de objetivos de negocio (KPI/OKR), utilizando SVG para el impacto visual.
+        """
+    )
+
+    # --- 1. KPI: Barra de Progreso Dinámica (SVG) ---
+    st.subheader("1. KPI: Barra de Progreso Dinámica (Métrica hacia Meta)")
+    
+    col_code_1, col_business_1 = st.columns(2)
+    
+    with col_business_1:
+        st.markdown("#### 🎯 Aplicación KPI/OKR")
+        st.markdown(
+            """
+            * **KPI:** Porcentaje de Cumplimiento de Ventas del Trimestre.
+            * **OKR:** Resultado Clave (KR): Aumentar la tasa de cumplimiento del objetivo de ingresos de la Región Norte del 65% al 90%.
+            * **Uso:** Ideal en una Matriz para ver el progreso de cada región o categoría.
+            """
+        )
     
     with col_code_1:
         st.code(
             """
-            // DAX: Asumimos que [Progreso %] existe (ej: 0.75)
-            VAR Progreso = ROUND([Progreso %] * 100, 0)
+            // DAX: Asumimos que [Progreso %] existe (ej: DIVIDE([Ventas], [Meta]))
+            VAR Progreso = ROUND([Progreso %] * 100, 0) 
             VAR ColorBarra = IF(Progreso >= 100, "teal", "dodgerblue")
 
             VAR SVGCode =
                 "<svg width='100%' height='15'>" & 
-                // Barra de fondo gris
-                "<rect width='100%' height='100%' fill='#cccccc' rx='3' ry='3' />" &
-                // Barra de progreso dinámica
+                // ... (Código SVG para dibujar barra y porcentaje) ...
                 "<rect width='" & Progreso & "%' height='100%' fill='" & ColorBarra & "' rx='3' ry='3' />" &
-                // Texto
-                "<text x='50%' y='60%' dominant-baseline='middle' text-anchor='middle' font-size='10' fill='white'>" & 
-                Progreso & "%" & 
-                "</text>" &
+                // ...
                 "</svg>"
 
             RETURN SVGCode
             """,
             language='dax',
         )
-    
-    with col_visual_1:
-        st.markdown("#### ✨ Visual en Power BI (Conceptual)")
-        st.markdown("Si [Progreso %] fuera **75%**:")
-        # Renderizado conceptual de la barra (usando HTML/CSS para simular SVG)
-        st.markdown(
-            """
-            <div style="background-color: #cccccc; height: 15px; width: 100%; border-radius: 3px;">
-                <div style="width: 75%; background-color: dodgerblue; height: 100%; border-radius: 3px; position: relative; display: flex; align-items: center; justify-content: center;">
-                    <span style="color: white; font-size: 10px; font-weight: bold;">75%</span>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
 
     st.markdown("---")
 
-    # --- 2. HTML Condicional (Icono de Tendencia) ---
-    st.subheader("2. HTML Condicional (Icono de Tendencia)")
-    st.markdown("Usando HTML puro y etiquetas `<span>` para mostrar iconos de flechas basados en una variación.")
+    # --- 2. OKR: Flecha de Tendencia (HTML Condicional) ---
+    st.subheader("2. OKR: Flecha de Tendencia (Evaluación de Progreso)")
     
-    col_code_3, col_visual_3 = st.columns(2)
+    col_code_2, col_business_2 = st.columns(2)
     
-    with col_code_3:
+    with col_business_2:
+        st.markdown("#### 🎯 Aplicación KPI/OKR")
+        st.markdown(
+            """
+            * **KPI:** Variación de Ingresos Mes-sobre-Mes (MoM).
+            * **OKR:** Objetivo: Reducir la rotación de clientes. Resultado Clave (KR): Disminuir la tasa de cancelación MoM en un 5%.
+            * **Uso:** Muestra instantáneamente si la tendencia es positiva (verde) o negativa (rojo) para evaluar el KR.
+            """
+        )
+    
+    with col_code_2:
         st.code(
             """
-            // DAX: Medida de variación, ej. [Variación vs Mes Anterior]
+            // DAX: [Variación vs Mes Anterior] = DIVIDE([Actual] - [Anterior], [Anterior])
             VAR Variacion = [Variacion vs Mes Anterior]
 
             VAR IconoHTML = 
                 SWITCH(
                     TRUE(),
-                    Variacion > 0, "<span style='color: green; font-size: 16px;'>▲</span>", // Flecha arriba
-                    Variacion < 0, "<span style='color: red; font-size: 16px;'>▼</span>",  // Flecha abajo
-                    "<span style='color: gray; font-size: 16px;'>—</span>"              // Guión
+                    Variacion > 0, "<span style='color: green; font-size: 16px;'>▲</span>", 
+                    Variacion < 0, "<span style='color: red; font-size: 16px;'>▼</span>",  
+                    "<span style='color: gray; font-size: 16px;'>—</span>"              
                 )
                 
             RETURN IconoHTML & " " & FORMAT(Variacion, "0.0%")
             """,
             language='dax'
         )
-    
-    with col_visual_3:
-        st.markdown("#### ✨ Visual en Power BI (Conceptual)")
-        st.markdown("Si [Variacion] fuera **+5.2%**:")
-        st.markdown(
-            """
-            <div style='padding: 5px;'>
-                <span style='color: green; font-size: 16px;'>▲</span> 
-                <span style='font-size: 14px;'>5.2%</span>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-        st.markdown("Si [Variacion] fuera **-1.9%**:")
-        st.markdown(
-            """
-            <div style='padding: 5px;'>
-                <span style='color: red; font-size: 16px;'>▼</span> 
-                <span style='font-size: 14px;'>-1.9%</span>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
 
     st.markdown("---")
     
-    # --- 3. Medidor Circular Simple ---
-    st.subheader("3. Medidor Circular Simple (Donut SVG)")
-    st.markdown("Una visualización de KPI simple que utiliza SVG para dibujar un círculo parcial, ideal para una tarjeta.")
+    # --- 3. KPI/OKR: Medidor Circular (Donut SVG) ---
+    st.subheader("3. KPI: Medidor Circular (Visión 360 de un Objetivo)")
     
-    col_code_2, col_visual_2 = st.columns(2)
+    col_code_3, col_business_3 = st.columns(2)
 
-    with col_code_2:
+    with col_business_3:
+        st.markdown("#### 🎯 Aplicación KPI/OKR")
+        st.markdown(
+            """
+            * **KPI:** Porcentaje de Tareas Completadas (En proyectos/IT).
+            * **Uso:** Excelente para tarjetas de resumen que necesitan mostrar el progreso visual hacia un hito fijo (Ej: 85% del proyecto completado).
+            """
+        )
+    
+    with col_code_3:
         st.code(
             """
-            // DAX: Medida para el valor a mostrar (0 a 100%)
+            // DAX: [Progreso %] es el valor (0 a 1)
             VAR Valor = ROUND([Progreso %], 2)
-            VAR Radio = 30
-            // ... (Cálculo de SVG Code con stroke-dashoffset) ...
+            VAR Radio = 30 
+            VAR Circunferencia = 2 * PI() * Radio
+            VAR DashOffset = Circunferencia * (1 - Valor)
             
-            VAR SVGCode = // CÓDIGO SVG CONCATENADO
-                // ... (código que dibuja el círculo) ...
-                "..." 
-                // ...
-            
+            VAR SVGCode =
+                "<svg width='100' height='70'>" &
+                // ... (Círculo de fondo y círculo de progreso dinámico) ...
+                "<circle r='" & Radio & "' cx='50' cy='35' fill='transparent' stroke='lightgray' stroke-width='8' />" &
+                "<circle r='" & Radio & "' cx='50' cy='35' fill='transparent' stroke='dodgerblue' stroke-width='8' stroke-dashoffset='" & DashOffset & "' transform='rotate(-90 50 35)' />" &
+                // ... (Texto) ...
+                "</svg>"
+
             RETURN SVGCode
             """,
             language='dax'
         )
-    
-    with col_visual_2:
-        st.markdown("#### ✨ Visual en Power BI (Conceptual)")
-        st.markdown("Si [Progreso %] fuera **85%**:")
-        # Renderizado conceptual del círculo (usando HTML/CSS para simular SVG)
-        st.markdown(
-            """
-            <div style="width: 70px; height: 70px; border-radius: 50%; background: radial-gradient(closest-side, white 65%, transparent 65% 100%), conic-gradient(green 85%, lightgray 0);">
-                <span style="position: relative; top: 40%; left: 35%; font-size: 14px; font-weight: bold;">85%</span>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
 
 st.markdown("---")
-st.success("¡La guía está completa! Ahora tienes el código DAX y la representación visual de cómo se verá el resultado en Power BI.")
+st.success("¡La guía completa con pasos de implementación y ejemplos KPI/OKR está lista!")
