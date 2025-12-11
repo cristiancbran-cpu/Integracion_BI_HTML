@@ -1,18 +1,1 @@
 streamlit
-python-dotenv
-tiktoken
-
-# Dependencias base y utilidades de LangChain
-langchain
-langchain-core
-langchain-community
-langchain-text-splitters
-langchain-chroma # MANTENER: aunque no usaremos Chroma, es dependencia de otras cadenas.
-
-# Reemplazo de Vector Store: Usamos FAISS
-faiss-cpu # <-- NUEVO: Vector store ligero
-langchain-google-genai 
-
-# Backend
-pypdf 
-# chromadb <-- ELIMINADO
