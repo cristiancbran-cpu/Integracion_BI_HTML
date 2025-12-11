@@ -1,198 +1,184 @@
 import streamlit as st
-import os
-from dotenv import load_dotenv
 
-# Importaciones de LangChain, ahora modulares
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_chroma import Chroma
-from langchain_community.document_loaders import PyPDFLoader
+# --- Configuración de la Página ---
+st.set_page_config(page_title="Guía: HTML Content en Power BI", layout="wide")
 
-# Corregido: La función 'create_stuff_documents_chain' DEBE importarse desde su ruta completa.
-# Es la única que suele requerir la ruta larga.
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import HumanMessage, AIMessage
+st.title("💡 Visualizador HTML Content en Power BI")
+st.header("Convierte Medidas DAX en Visualizaciones Dinámicas (HTML/SVG)")
 
-import tempfile
-# ... el resto del código ...
-
-# Cargar variables de entorno (para desarrollo local)
-load_dotenv()
-
-# --- Configuración de Streamlit ---
-st.set_page_config(page_title="Asistente DAX y Visualización para Power BI", layout="wide")
-st.title("📊 Asistente de Power BI (DAX & Visualización)")
-st.caption("Sube la estructura de tus datos (tablas/columnas) y pregunta sobre medidas DAX o código de visualización (HTML/SVG).")
-
-# ----------------------------------------------------
-# PASO 1: Vincular la Clave de API (Opción más segura)
-# ----------------------------------------------------
-api_key = os.getenv("GOOGLE_API_KEY") 
-
-if not api_key:
-    with st.sidebar:
-        st.warning("⚠️ Introduce tu clave de API de Gemini para continuar.")
-        api_key_input = st.text_input("Clave de API de Google Gemini", type="password")
-    
-    if api_key_input:
-        api_key = api_key_input
-    else:
-        st.info("Introduce la clave de API en la barra lateral.")
-        st.stop()
-
-os.environ["GOOGLE_API_KEY"] = api_key
-
-# --- Funciones de RAG ---
-
-def process_documents(uploaded_file):
+st.markdown(
     """
-    Carga el archivo (estructura de datos), lo divide y crea un vector store.
+    El visualizador **HTML Content** (generalmente un visualizador personalizado como 'HTML Viewer' o el visualizador 'Text Filter' con la capacidad HTML activada) permite inyectar código HTML, CSS y SVG directamente en un informe de Power BI. 
+    Esto es crucial para crear visualizaciones personalizadas que DAX, por sí solo, no puede generar (ej. iconos, medidores, semáforos, barras de progreso dentro de una tabla).
     """
-    if uploaded_file is None:
-        return None
+)
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=uploaded_file.name) as tmp_file:
-        tmp_file.write(uploaded_file.read())
-        temp_file_path = tmp_file.name
+st.markdown("---")
 
-    try:
-        # Intentar determinar el cargador basado en la extensión
-        ext = uploaded_file.name.split('.')[-1].lower()
-        if ext in ['txt', 'md']:
-            loader = TextLoader(temp_file_path, encoding="utf-8")
-        elif ext == 'csv':
-            # CSVLoader necesita saber la columna de texto a usar, por defecto lo usa todo
-            loader = CSVLoader(temp_file_path, encoding="utf-8")
-        else:
-            st.error(f"Tipo de archivo no soportado ({ext}). Por favor, usa TXT, MD o CSV.")
-            os.remove(temp_file_path)
-            return None
-        
-        documents = loader.load()
+# --- Definición de Pestañas ---
 
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1500,
-            chunk_overlap=200,
-        )
-        texts = text_splitter.split_documents(documents)
+tab1, tab2, tab3 = st.tabs(["1. ¿Qué es y Cómo Funciona?", "2. Aplicación y Código DAX", "3. Ejemplos Prácticos (SVG/HTML)"])
 
-        # Crear Embeddings y Vector Store
-        embeddings = GoogleGenerativeAIEmbeddings(model="text-embedding-004") 
-        vectorstore = Chroma.from_documents(texts, embeddings)
-        
-        os.remove(temp_file_path)
-        
-        return vectorstore.as_retriever()
-        
-    except Exception as e:
-        st.error(f"Error al procesar el documento: {e}")
-        if os.path.exists(temp_file_path):
-             os.remove(temp_file_path)
-        return None
-
-
-def get_rag_chain(retriever):
-    """
-    Crea la cadena RAG para generar el código DAX o la visualización.
-    """
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.1)
-    
-    # Prompt de sistema especializado para Power BI
-    system_prompt = (
-        "Eres un experto consultor de Power BI. Tu tarea es generar código (DAX, HTML o SVG) "
-        "o dar consejos de visualización SOLAMENTE basándote en la ESTRUCTURA DE TABLAS proporcionada. "
-        "Cuando el usuario pida una MEDIDA, genera el código DAX completo. "
-        "Cuando el usuario pida un CÓDIGO DE VISUALIZACIÓN (HTML o SVG), genera solo el código, "
-        "pero advierte que debe usarse con una medida DAX que concatene el resultado. "
-        "Asegúrate de que las referencias a tablas y columnas (ej. 'Tabla[Columna]') sean sintácticamente correctas. "
-        "\n\nContexto de la estructura de datos: \n{context}"
-    )
-
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", system_prompt),
-            ("human", "{input}"),
-        ]
-    )
-    
-    document_chain = create_stuff_documents_chain(llm, prompt)
-    
-    # Esta cadena no necesita historial de chat, solo la pregunta y el contexto de los datos.
-    return create_retrieval_chain(retriever, document_chain)
-
-
-# --- Lógica de la Aplicación Streamlit ---
-
-if "rag_chain" not in st.session_state:
-    st.session_state.rag_chain = None
-if "processing_done" not in st.session_state:
-    st.session_state.processing_done = False
-
-
-# Sidebar para subir el archivo
-with st.sidebar:
-    st.header("1. Carga la Estructura de Datos")
-    st.markdown("Copia y pega la estructura de tus tablas y columnas en un archivo **.txt** o sube un **.csv** representativo.")
-    
-    uploaded_file = st.file_uploader(
-        "Sube archivo (.txt, .csv)",
-        type=["txt", "csv", "md"],
-        accept_multiple_files=False
-    )
-    
-    if st.button("Procesar Estructura"):
-        if uploaded_file:
-            with st.spinner("Creando contexto de datos..."):
-                retriever = process_documents(uploaded_file)
-                if retriever:
-                    st.session_state.rag_chain = get_rag_chain(retriever)
-                    st.session_state.processing_done = True
-                    st.success("¡Estructura de datos procesada! Ahora puedes preguntar en el panel principal.")
-                else:
-                    st.session_state.processing_done = False
-        else:
-            st.warning("Por favor, sube un archivo con la estructura de datos primero.")
-    
-    st.markdown("---")
-    st.write("Impulsado por Gemini 2.5 Flash y RAG.")
-
-
-# Panel principal
-st.header("💬 Pregunta al Asistente")
-
-if not st.session_state.processing_done:
-    st.info("Sube la estructura de tus datos en la barra lateral para empezar.")
-else:
-    # Entrada de pregunta
-    user_question = st.text_area(
-        "Escribe aquí tu pregunta o solicitud (Ejemplos abajo):",
-        placeholder="Ej: Necesito una medida DAX para calcular las ventas de los últimos 6 meses del contexto de [Ventas] y la columna [Fecha]."
-    )
-    
-    if st.button("Generar Solución"):
-        if user_question and st.session_state.rag_chain:
-            with st.spinner("Gemini está generando el código..."):
-                try:
-                    # La cadena RAG invoca el LLM con la pregunta y el contexto de los datos
-                    response = st.session_state.rag_chain.invoke({"input": user_question})
-                    
-                    # El resultado de create_retrieval_chain está en 'answer'
-                    assistant_response = response["answer"]
-                    
-                    st.subheader("🛠️ Solución Generada")
-                    st.markdown(assistant_response)
-
-                except Exception as e:
-                    st.error(f"Error al generar la respuesta: {e}")
-        else:
-            st.warning("Por favor, escribe una pregunta.")
-
-    st.markdown("---")
-    st.subheader("💡 Ejemplos de Solicitudes:")
+# ----------------------------------------------------------------------
+# PESTAÑA 1: Conceptos
+# ----------------------------------------------------------------------
+with tab1:
+    st.subheader("¿Qué es el Visualizador HTML Content?")
     st.markdown(
-        "* **DAX:** 'Crea la medida DAX de una cuenta acumulada de los ingresos de la tabla de Facturas a lo largo del tiempo.'\n"
-        "* **Visualización (HTML/SVG):** 'Crea el código SVG para mostrar un semáforo (rojo, amarillo, verde) basado en si el valor es menor a 1000, entre 1000 y 5000, o mayor a 5000. Debe ser un código que se use en una medida DAX.'\n"
-        "* **Consejo de Gráfico:** 'Con las columnas [Fecha], [Categoría de Producto] y [Ventas], ¿qué gráfico es mejor para visualizar la tendencia y la contribución de la categoría?'"
+        """
+        Es un visualizador personalizado (no nativo de Microsoft) que interpreta código HTML que se le pasa como una cadena de texto.
+        
+        * **Propósito:** Superar las limitaciones de formato y visualización de las tarjetas o tablas estándar de Power BI.
+        * **Contenido Aceptado:** HTML, CSS y, fundamentalmente, código **SVG (Scalable Vector Graphics)** para dibujar gráficos dinámicos.
+        """
     )
+
+    st.subheader("Mecanismo Clave: DAX como Generador de Código")
+    st.markdown(
+        """
+        El funcionamiento se basa en generar una *única medida DAX* cuyo resultado no es un número o texto simple, sino una **cadena de código HTML o SVG completa**.
+        
+        1.  **Cálculo DAX:** Se utiliza DAX para calcular valores, realizar comparaciones (`IF`, `SWITCH`), y determinar colores o tamaños.
+        2.  **Concatenación:** El resultado del cálculo se concatena con etiquetas HTML/SVG como `<div>`, `<svg>`, `<rect>`, usando `CONCATENATEX` o `&`.
+        3.  **Visualización:** El visualizador HTML Content toma esa cadena de código DAX (ej., `'<div style="color: red;">' & [Mi Medida] & '</div>'`) y lo renderiza como un elemento visual en la página.
+        """
+    )
+    
+    st.markdown("---")
+    st.subheader("Requisitos Previos")
+    st.warning("Necesitas descargar e importar un visualizador personalizado de HTML Content desde AppSource de Microsoft (por ejemplo, 'HTML Viewer').")
+
+
+# ----------------------------------------------------------------------
+# PESTAÑA 2: Aplicación y Código DAX
+# ----------------------------------------------------------------------
+with tab2:
+    st.subheader("Pasos para la Aplicación en Power BI")
+    
+    st.markdown(
+        """
+        1.  **Importar Visualizador:** Importa el visualizador **HTML Content** (o similar) desde el mercado de AppSource.
+        2.  **Crear Medida DAX:** Escribe una medida DAX que incluya el código HTML/SVG necesario. El código debe ser una **cadena de texto**.
+        3.  **Colocar la Medida:** Arrastra esa medida DAX al campo principal del visualizador HTML Content.
+        4.  **Configuración:** Asegúrate de que la configuración del visualizador esté activa para interpretar el HTML.
+        """
+    )
+    
+    st.subheader("Ejemplo Base de Medida DAX (Semáforo Condicional)")
+    st.markdown("Este ejemplo utiliza DAX para decidir si el resultado es bueno, regular o malo y lo envuelve en un emoji/ícono SVG o HTML.")
+    
+    st.code(
+        """
+        // 1. Definir la métrica base (asumimos que existe)
+        VAR VentasActuales = [Total Ventas] 
+
+        // 2. Definir los colores/símbolos basados en la métrica
+        VAR ColorSemaforo = 
+            SWITCH(
+                TRUE(),
+                VentasActuales >= 100000, "green",
+                VentasActuales >= 50000, "orange",
+                "red"
+            )
+        
+        // 3. Generar el código HTML/SVG completo
+        VAR IconoHTML = 
+            "<span style='font-size: 20px; color: " & ColorSemaforo & ";'>&#9679;</span>" // Emoji círculo
+
+        // 4. Concatenar el icono con el valor
+        RETURN
+            IconoHTML & " " & FORMAT(VentasActuales, "$#,0")
+        """,
+        language='dax'
+    )
+    st.info("El resultado de esta medida es una única cadena de texto que el visualizador renderiza como un ícono de color seguido del valor.")
+
+# ----------------------------------------------------------------------
+# PESTAÑA 3: Ejemplos Prácticos (SVG/HTML)
+# ----------------------------------------------------------------------
+with tab3:
+    st.header("Ejemplos Avanzados de Código para Power BI")
+    st.markdown("Estos ejemplos son ideales para visualizaciones en Tablas o Matrices.")
+
+    st.subheader("1. Barra de Progreso Dinámica (SVG)")
+    st.markdown("Útil para mostrar el progreso de una métrica hacia un objetivo dentro de una tabla. El ancho de la barra es dinámico.")
+    
+    st.code(
+        """
+        // DAX: Asumimos que [Progreso %] existe (ej: DIVIDE([Actual], [Meta]))
+        VAR Progreso = ROUND([Progreso %] * 100, 0) // Valor entre 0 y 100
+        VAR ColorBarra = IF(Progreso >= 100, "teal", "dodgerblue")
+
+        VAR SVGCode =
+            "<svg width='100%' height='15'>" & 
+            // Barra de fondo gris
+            "<rect width='100%' height='100%' fill='#cccccc' rx='3' ry='3' />" &
+            // Barra de progreso dinámica
+            "<rect width='" & Progreso & "%' height='100%' fill='" & ColorBarra & "' rx='3' ry='3' />" &
+            // Texto (opcional)
+            "<text x='50%' y='60%' dominant-baseline='middle' text-anchor='middle' font-size='10' fill='white'>" & 
+            Progreso & "%" & 
+            "</text>" &
+            "</svg>"
+
+        RETURN SVGCode
+        """,
+        language='dax',
+        
+    )
+    st.warning("Debes colocar la medida `SVGCode` en el campo de un visualizador HTML Content, y luego usar ese visualizador en tu matriz.")
+
+    st.subheader("2. Medidor Circular Simple (Donut SVG)")
+    st.markdown("Una visualización de KPI simple que utiliza SVG para dibujar un círculo parcial, ideal para una tarjeta o una matriz con pocos elementos.")
+    
+    st.code(
+        """
+        // DAX: Medida para el valor a mostrar (0 a 100%)
+        VAR Valor = ROUND([Progreso %], 2)
+        VAR Radio = 30
+        VAR Circunferencia = 2 * PI() * Radio
+        VAR DashOffset = Circunferencia * (1 - Valor)
+        VAR ColorStroke = IF(Valor >= 0.8, "green", "red")
+
+        VAR SVGCode =
+            "<svg width='100' height='70'>" &
+            // Círculo de fondo (gris)
+            "<circle r='" & Radio & "' cx='50' cy='35' fill='transparent' stroke='lightgray' stroke-width='8' />" &
+            // Círculo de progreso (dinámico)
+            "<circle r='" & Radio & "' cx='50' cy='35' fill='transparent' stroke='" & ColorStroke & 
+            "' stroke-width='8' stroke-dasharray='" & Circunferencia & 
+            "' stroke-dashoffset='" & DashOffset & "' transform='rotate(-90 50 35)' />" &
+            // Texto del porcentaje
+            "<text x='50' y='35' text-anchor='middle' font-size='12' fill='#333333'>" & 
+            FORMAT(Valor, "0%") & 
+            "</text>" &
+            "</svg>"
+
+        RETURN SVGCode
+        """,
+        language='dax'
+    )
+    
+    st.subheader("3. HTML Condicional (Icono de Tendencia)")
+    st.markdown("Usando HTML puro y etiquetas `<span>` para mostrar iconos de flechas basados en una variación.")
+    
+    st.code(
+        """
+        // DAX: Medida de variación, ej. [Variación vs Mes Anterior]
+        VAR Variacion = [Variacion vs Mes Anterior]
+
+        VAR IconoHTML = 
+            SWITCH(
+                TRUE(),
+                Variacion > 0, "<span style='color: green; font-size: 16px;'>▲</span>", // Flecha arriba
+                Variacion < 0, "<span style='color: red; font-size: 16px;'>▼</span>",  // Flecha abajo
+                "<span style='color: gray; font-size: 16px;'>—</span>"              // Guión
+            )
+            
+        RETURN IconoHTML & " " & FORMAT(Variacion, "0.0%")
+        """,
+        language='dax'
+    )
+
+st.markdown("---")
+st.success("¡Ahora tienes la base conceptual y ejemplos de código DAX/SVG listos para probar con el visualizador HTML Content en Power BI!")
