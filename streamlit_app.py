@@ -65,7 +65,7 @@ with tab2:
     )
     
     st.subheader("Ejemplo Base de Medida DAX (Semáforo Condicional)")
-    st.markdown("Este ejemplo utiliza DAX para decidir si el resultado es bueno, regular o malo y lo envuelve en un emoji/ícono SVG o HTML.")
+    st.markdown("Este ejemplo utiliza DAX para decidir si el resultado es bueno, regular o malo y lo envuelve en un emoji/ícono.")
     
     st.code(
         """
